@@ -16,10 +16,14 @@ type Shortened struct {
 }
 
 func Shorten(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
+	w.Header().Set("Content-Type", "application/json")
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -36,6 +40,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 		url.FullUrl = "https://" + url.FullUrl
 	}
 	storage.Store[code] = url.FullUrl
+	storage.Save()
 	s := Shortened{Short: code}
 	fmt.Println(code, ": ", storage.Store[code])
 	json.NewEncoder(w).Encode(s)
