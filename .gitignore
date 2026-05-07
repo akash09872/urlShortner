@@ -1,2 +1,5 @@
 .env
 storage/data.json
+postgres-data/
+.vscode/
+postgres.yaml

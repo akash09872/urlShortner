@@ -2,9 +2,9 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
+	"math/rand"
 	"net/http"
-	"strconv"
+	"urlshortner/db"
 	"urlshortner/storage"
 )
 
@@ -13,6 +13,39 @@ type URL struct {
 }
 type Shortened struct {
 	Short string `json:"short"`
+}
+
+const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func GenerateCode(length int) string {
+	code := ""
+
+	for i := 0; i < length; i++ {
+		randomIndex := rand.Intn(len(chars))
+
+		code += string(chars[randomIndex])
+	}
+
+	return code
+}
+func CodeExists(code string) bool {
+
+	var exists bool
+
+	err := db.DB.QueryRow(
+		"SELECT EXISTS(SELECT 1 FROM urls WHERE short_code = $1)",
+		code,
+	).Scan(&exists)
+
+	if err != nil {
+		panic(err)
+	}
+
+	return exists
+}
+
+type ErrorResponse struct {
+	Message string `json:"message"`
 }
 
 func Shorten(w http.ResponseWriter, r *http.Request) {
@@ -31,17 +64,20 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 	var url URL
 	json.NewDecoder(r.Body).Decode(&url)
 	if url.FullUrl == "" {
-		http.Error(w, "URL Required", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{
+			Message: "URL Required",
+		})
 		return
 	}
-
-	code := strconv.Itoa(len(storage.Store) + 1)
-	if url.FullUrl[0:8] != "https://" {
+	code := GenerateCode(6)
+	for CodeExists(code) {
+		code = GenerateCode(6)
+	}
+	if len(url.FullUrl) <= 8 || url.FullUrl[0:8] != "https://" {
 		url.FullUrl = "https://" + url.FullUrl
 	}
-	storage.Store[code] = url.FullUrl
-	storage.Save()
+	storage.SaveUrl(code, url.FullUrl)
 	s := Shortened{Short: code}
-	fmt.Println(code, ": ", storage.Store[code])
 	json.NewEncoder(w).Encode(s)
 }
