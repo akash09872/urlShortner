@@ -1,5 +1,16 @@
+# Environment files
 .env
-storage/data.json
+
+# PostgreSQL local data
 postgres-data/
+*.yaml
+*.yml
+
+# Build files
+*.exe
+*.out
+*.test
+
+# IDE
 .vscode/
-postgres.yaml
+.idea/

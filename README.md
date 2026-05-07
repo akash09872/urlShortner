@@ -1,19 +1,30 @@
-# Go URL Shortener Backend
+# URL Shortener Backend (Go + PostgreSQL)
 
-## What'S Built
+A backend URL shortener built using Go, PostgreSQL, Docker, and the standard `net/http` package.
 
-A basic backend URL shortener using Go and `net/http`.
+This project was built while learning backend development fundamentals step-by-step.
 
-Features:
-- HTTP server
-- Routing
-- Query parameters
-- JSON handling
-- Middleware
+---
+
+# Features
+
 - URL shortening
-- Redirect system
-- File persistence using JSON
-- Environment variables using `.env`
+- Redirect using short code
+- PostgreSQL persistence
+- Dockerized PostgreSQL
+- Middleware support
+- JSON request/response handling
+- Layered backend structure
+- Environment variable support using `.env`
+
+---
+
+# Tech Stack
+
+- Go
+- PostgreSQL
+- Docker
+- net/http
 
 ---
 
@@ -31,13 +42,19 @@ urlshortner/
 │   └── logger.go
 │
 ├── storage/
-│   ├── store.go
-│   ├── file.go
-│   └── data.json
-│
-├── model/
+│   ├── helper.go
 │   └── url.go
 │
+├── database/
+│   └── db.go
+│
+├── model/
+│   ├── response.go
+│   └── url.go
+│
+├── postgres-data/
+│
+├── docker-compose.yml
 ├── .env
 ├── go.mod
 └── go.sum
@@ -45,138 +62,91 @@ urlshortner/
 
 ---
 
-# Concepts Covered
+# Environment Variables
 
-## 1. HTTP Server
-
-```go
-http.ListenAndServe(":4000", nil)
-```
-
-Starts backend server.
-
----
-
-## 2. Routing
-
-```go
-http.HandleFunc("/shorten", handler.Shorten)
-```
-
-Maps route to handler.
-
----
-
-## 3. Handlers
-
-```go
-func Shorten(w http.ResponseWriter, r *http.Request)
-```
-
-Handles request and response.
-
----
-
-## 4. Query Parameters
-
-```go
-r.URL.Query().Get("url")
-```
-
-Reads URL query values.
-
----
-
-## 5. JSON Encoding/Decoding
-
-### Decode
-
-```go
-json.NewDecoder(r.Body).Decode(&data)
-```
-
-### Encode
-
-```go
-json.NewEncoder(w).Encode(data)
-```
-
----
-
-## 6. Middleware
-
-```go
-logger(handler.Shorten)
-```
-
-Wraps handler with extra functionality.
-
-Example:
-- logging
-- auth
-- CORS
-
----
-
-## 7. Redirects
-
-```go
-http.Redirect(w, r, url, http.StatusFound)
-```
-
-Redirects short URL to original URL.
-
----
-
-## 8. Environment Variables
-
-### .env
+Create a `.env` file:
 
 ```env
 PORT=4000
-```
 
-### Load
-
-```go
-godotenv.Load()
-```
-
-### Read
-
-```go
-os.Getenv("PORT")
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=YOUR_PASS
+DB_NAME=urlshortner
 ```
 
 ---
 
-## 9. File Persistence
+# Running PostgreSQL with Docker
 
-### Save map to JSON file
+## docker-compose.yml
 
-```go
-json.NewEncoder(file).Encode(Store)
-```
+```yaml
+services:
+  postgres:
+    image: postgres
+    container_name: postgres-db
 
-### Load map from file
+    environment:
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: urlshortner
 
-```go
-json.NewDecoder(file).Decode(&Store)
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ./postgres-data:/var/lib/postgresql
 ```
 
 ---
 
-# Commands Used
-
-## Initialize Go Module
+# Start PostgreSQL
 
 ```bash
-go mod init urlshortner
+docker compose up -d
 ```
 
 ---
 
-## Run Server
+# Enter PostgreSQL Shell
+
+```bash
+docker exec -it postgres-db psql -U postgres
+```
+
+---
+
+# Connect Database
+
+```sql
+\c urlshortner
+```
+
+---
+
+# Create Table
+
+```sql
+CREATE TABLE urls (
+    id SERIAL PRIMARY KEY,
+    short_code TEXT UNIQUE,
+    original_url TEXT NOT NULL
+);
+```
+
+---
+
+# Install Dependencies
+
+```bash
+go get github.com/lib/pq
+go get github.com/joho/godotenv
+```
+
+---
+
+# Run Backend
 
 ```bash
 go run .
@@ -184,15 +154,46 @@ go run .
 
 ---
 
-## Install dotenv package
+# API Endpoints
 
-```bash
-go get github.com/joho/godotenv
+## Shorten URL
+
+### Request
+
+```http
+POST /shorten
+Content-Type: application/json
+```
+
+### Body
+
+```json
+{
+  "url": "https://google.com"
+}
+```
+
+### Response
+
+```json
+{
+  "short": "Ab12Xq"
+}
 ```
 
 ---
 
-# API Flow
+## Redirect
+
+```http
+GET /Ab12Xq
+```
+
+Redirects user to original URL.
+
+---
+
+# Backend Request Flow
 
 ```text
 Client
@@ -203,27 +204,44 @@ Middleware
  ↓
 Handler
  ↓
-Storage
+Storage Layer
+ ↓
+PostgreSQL
  ↓
 Response
 ```
 
 ---
 
-# URL Shortener Flow
+# Concepts Learned
 
-```text
-POST /shorten
-↓
-Read URL
-↓
-Generate short code
-↓
-Store in map
-↓
-Save to file
-↓
-Return short code
-```
+- HTTP fundamentals
+- Routing using `net/http`
+- JSON encoding/decoding
+- Middleware
+- Request lifecycle
+- PostgreSQL integration
+- Docker basics
+- Environment variables
+- Layered backend architecture
+- SQL queries from Go
 
 ---
+
+# Future Improvements
+
+- Proper error handling
+- Duplicate URL prevention
+- Random short code optimization
+- Visit analytics
+- Authentication
+- Rate limiting
+- Custom response format
+- Database migrations
+
+---
+
+# Learning Purpose
+
+This project was built to deeply understand backend fundamentals instead of relying on frameworks too early.
+
