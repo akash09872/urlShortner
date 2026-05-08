@@ -70,14 +70,30 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	code := GenerateCode(6)
-	for CodeExists(code) {
-		code = GenerateCode(6)
-	}
 	if len(url.FullUrl) <= 8 || url.FullUrl[0:8] != "https://" {
 		url.FullUrl = "https://" + url.FullUrl
 	}
+	var code string
+
+	err := db.DB.QueryRow(
+		"SELECT short_code FROM urls WHERE original_url = $1",
+		url.FullUrl,
+	).Scan(&code)
+
+	if err == nil {
+		// already exists
+		json.NewEncoder(w).Encode(Shortened{
+			Short: code,
+		})
+		return
+	}
+
+	code = GenerateCode(6)
+	for CodeExists(code) {
+		code = GenerateCode(6)
+	}
 	storage.SaveUrl(code, url.FullUrl)
 	s := Shortened{Short: code}
+	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(s)
 }
