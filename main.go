@@ -7,6 +7,7 @@ import (
 	"urlshortner/db"
 	"urlshortner/handler"
 	"urlshortner/middleware"
+	"urlshortner/storage"
 
 	"github.com/joho/godotenv"
 )
@@ -19,6 +20,7 @@ func main() {
 	http.HandleFunc("/shorten", middleware.Logger(handler.Shorten))
 	http.HandleFunc("/", middleware.Logger(handler.Redirect))
 	db.Connect()
+	go storage.Clean()
 	fmt.Println("Server Started")
 	http.ListenAndServe(":"+PORT, nil)
 }

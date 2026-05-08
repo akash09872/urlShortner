@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net/http"
+	"time"
 	"urlshortner/db"
 	"urlshortner/storage"
 )
@@ -57,6 +58,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
 		return
@@ -85,6 +87,11 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(Shortened{
 			Short: code,
 		})
+		db.DB.QueryRow(
+			"UPDATE urls SET expires_at = $1 WHERE original_url = $2",
+			time.Now().Add(6*time.Hour),
+			url.FullUrl,
+		)
 		return
 	}
 
@@ -94,6 +101,5 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 	}
 	storage.SaveUrl(code, url.FullUrl)
 	s := Shortened{Short: code}
-	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(s)
 }

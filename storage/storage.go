@@ -1,14 +1,27 @@
 package storage
 
-import "urlshortner/db"
+import (
+	"time"
+	"urlshortner/db"
+)
 
+func Clean() {
+	ticker := time.NewTicker(10 * time.Minute)
+	for range ticker.C {
+		db.DB.Exec(
+			"DELETE FROM urls WHERE expires_at < $1",
+			time.Now(),
+		)
+	}
+}
 func SaveUrl(code string, url string) {
+	expiry_time := time.Now().Add(6 * time.Hour)
 	_, err := db.DB.Exec(
-		"INSERT INTO urls (short_code, original_url) VALUES ($1, $2)",
+		"INSERT INTO urls (short_code, original_url,expires_at) VALUES ($1, $2, $3)",
 		code,
 		url,
+		expiry_time,
 	)
-
 	if err != nil {
 		panic(err)
 	}
