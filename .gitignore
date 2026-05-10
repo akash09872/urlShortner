@@ -14,3 +14,6 @@ postgres-data/
 # IDE
 .vscode/
 .idea/
+
+#docker
+Dockerfile

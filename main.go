@@ -5,8 +5,7 @@ import (
 	"net/http"
 	"os"
 	"urlshortner/db"
-	"urlshortner/handler"
-	"urlshortner/middleware"
+	"urlshortner/routes"
 	"urlshortner/storage"
 
 	"github.com/joho/godotenv"
@@ -15,12 +14,9 @@ import (
 func main() {
 	godotenv.Load()
 	PORT := os.Getenv("PORT")
-	host := os.Getenv("DB_HOST")
-	fmt.Println(host)
-	http.HandleFunc("/shorten", middleware.Logger(handler.Shorten))
-	http.HandleFunc("/", middleware.Logger(handler.Redirect))
 	db.Connect()
 	go storage.Clean()
+	routes.Route()
 	fmt.Println("Server Started")
 	http.ListenAndServe(":"+PORT, nil)
 }

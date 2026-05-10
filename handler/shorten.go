@@ -6,15 +6,9 @@ import (
 	"net/http"
 	"time"
 	"urlshortner/db"
+	"urlshortner/model"
 	"urlshortner/storage"
 )
-
-type URL struct {
-	FullUrl string `json:"url"`
-}
-type Shortened struct {
-	Short string `json:"short"`
-}
 
 const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -45,13 +39,16 @@ func CodeExists(code string) bool {
 	return exists
 }
 
-type ErrorResponse struct {
-	Message string `json:"message"`
-}
-
 func Shorten(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	username := r.Context().Value("username").(string)
+	userID, err := storage.GetUserId(username)
+
+	if err != nil {
+		http.Error(w, "User not found", 400)
 		return
 	}
 	w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -63,13 +60,10 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
-	var url URL
+	var url model.URL
 	json.NewDecoder(r.Body).Decode(&url)
 	if url.FullUrl == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{
-			Message: "URL Required",
-		})
+		http.Error(w, "URL required", http.StatusBadRequest)
 		return
 	}
 	if len(url.FullUrl) <= 8 || url.FullUrl[0:8] != "https://" {
@@ -77,14 +71,14 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 	}
 	var code string
 
-	err := db.DB.QueryRow(
-		"SELECT short_code FROM urls WHERE original_url = $1",
-		url.FullUrl,
+	err = db.DB.QueryRow(
+		"SELECT short_code FROM urls WHERE user_id = $2 AND original_url = $1",
+		url.FullUrl, userID,
 	).Scan(&code)
 
 	if err == nil {
 		// already exists
-		json.NewEncoder(w).Encode(Shortened{
+		json.NewEncoder(w).Encode(model.Shortened{
 			Short: code,
 		})
 		db.DB.QueryRow(
@@ -99,7 +93,7 @@ func Shorten(w http.ResponseWriter, r *http.Request) {
 	for CodeExists(code) {
 		code = GenerateCode(6)
 	}
-	storage.SaveUrl(code, url.FullUrl)
-	s := Shortened{Short: code}
+	storage.SaveUrl(code, url.FullUrl, userID)
+	s := model.Shortened{Short: code}
 	json.NewEncoder(w).Encode(s)
 }
